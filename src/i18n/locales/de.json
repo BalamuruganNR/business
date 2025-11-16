@@ -1,0 +1,32 @@
+{
+  "header": {
+    "search": "Suche Tiere, Freunde...",
+    "notifications": "Benachrichtigungen",
+    "create": "Erstellen",
+    "settings": "Einstellungen",
+    "admin": "Admin"
+  },
+  "common": {
+    "loading": "Lädt...",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "share": "Teilen",
+    "close": "Schließen",
+    "confirm": "Bestätigen",
+    "submit": "Senden",
+    "success": "Erfolg!",
+    "error": "Fehler",
+    "warning": "Warnung",
+    "info": "Information"
+  },
+  "messaging": {
+    "title": "Nachrichten",
+    "newMessage": "Neue Nachricht",
+    "noMessages": "Noch keine Nachrichten",
+    "startConversation": "Starte eine Konversation",
+    "typeMessage": "Nachricht eingeben...",
+    "send": "Senden"
+  }
+} 

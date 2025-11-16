@@ -1,0 +1,443 @@
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  Timestamp,
+  serverTimestamp,
+  setDoc
+} from "firebase/firestore";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile,
+  onAuthStateChanged,
+  signOut,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  updateEmail,
+  updatePassword,
+  User as FirebaseUser,
+  GoogleAuthProvider,
+  signInWithPopup,
+  PhoneAuthProvider,
+  signInWithCredential,
+  PhoneAuthCredential
+} from "firebase/auth";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, auth, storage } from "../config/firebase";
+import { User, AnimalPost, Donation } from "@/utils/types";
+
+// Authentication Services
+export const registerUser = async (email: string, password: string, username: string) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(userCredential.user, {
+      displayName: username
+    });
+
+    // Create user profile in Firestore
+    await createUserProfile(userCredential.user, {
+      username,
+      authProvider: 'email'
+    });
+
+    // Send email verification
+    await sendEmailVerification(userCredential.user);
+
+    return userCredential.user;
+  } catch (error) {
+    console.error("Error registering user: ", error);
+    throw error;
+  }
+};
+
+// Helper function to create or update user profile in Firestore
+export const createUserProfile = async (user: FirebaseUser, additionalData: any = {}) => {
+  if (!user) return;
+
+  try {
+    // Check if user already exists
+    const userQuery = query(collection(db, "users"), where("uid", "==", user.uid));
+    const querySnapshot = await getDocs(userQuery);
+    
+    if (querySnapshot.empty) {
+      // Create new user profile
+      const userData = {
+        uid: user.uid,
+        username: additionalData.username || user.displayName || user.email?.split('@')[0] || 'User',
+        email: user.email || '',
+        phoneNumber: user.phoneNumber || '',
+        profilePic: user.photoURL || '',
+        bio: '',
+        badges: [],
+        followers: 0,
+        following: 0,
+        joinDate: serverTimestamp(),
+        donationsMade: 0,
+        adoptions: 0,
+        isCollaborator: false,
+        verified: user.emailVerified,
+        authProvider: additionalData.authProvider || 'unknown',
+        lastLogin: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, "users"), userData);
+    } else {
+      // Update existing user profile with last login
+      const userDoc = querySnapshot.docs[0];
+      await updateDoc(doc(db, "users", userDoc.id), {
+        lastLogin: serverTimestamp(),
+        verified: user.emailVerified,
+        // Update any additional fields if provided
+        ...(additionalData.username && { username: additionalData.username }),
+        ...(user.photoURL && { profilePic: user.photoURL })
+      });
+    }
+  } catch (error) {
+    console.error("Error creating/updating user profile: ", error);
+    throw error;
+  }
+};
+
+export const loginUser = async (email: string, password: string) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // Create or update user profile
+    await createUserProfile(userCredential.user);
+    
+    return userCredential.user;
+  } catch (error) {
+    console.error("Error logging in: ", error);
+    throw error;
+  }
+};
+
+export const signInWithGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    
+    // Create or update user profile
+    await createUserProfile(result.user, {
+      authProvider: 'google'
+    });
+    
+    return result.user;
+  } catch (error) {
+    console.error("Error with Google sign in: ", error);
+    throw error;
+  }
+};
+
+export const logoutUser = async () => {
+  try {
+    await signOut(auth);
+    return true;
+  } catch (error) {
+    console.error("Error logging out: ", error);
+    throw error;
+  }
+};
+
+export const resetPassword = async (email: string) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return true;
+  } catch (error) {
+    console.error("Error sending password reset email: ", error);
+    throw error;
+  }
+};
+
+export const changeEmail = async (newEmail: string) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No user is currently signed in");
+    
+    await updateEmail(user, newEmail);
+    
+    // Update email in Firestore
+    const userQuery = query(collection(db, "users"), where("uid", "==", user.uid));
+    const querySnapshot = await getDocs(userQuery);
+    
+    if (!querySnapshot.empty) {
+      const userDoc = querySnapshot.docs[0];
+      await updateDoc(doc(db, "users", userDoc.id), {
+        email: newEmail,
+        updatedAt: serverTimestamp()
+      });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error changing email: ", error);
+    throw error;
+  }
+};
+
+export const changePassword = async (newPassword: string) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No user is currently signed in");
+    
+    await updatePassword(user, newPassword);
+    return true;
+  } catch (error) {
+    console.error("Error changing password: ", error);
+    throw error;
+  }
+};
+
+export const resendVerificationEmail = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No user is currently signed in");
+    
+    await sendEmailVerification(user);
+    return true;
+  } catch (error) {
+    console.error("Error sending verification email: ", error);
+    throw error;
+  }
+};
+
+export const getCurrentUser = () => {
+  return new Promise<FirebaseUser | null>((resolve, reject) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      resolve(user);
+    }, reject);
+  });
+};
+
+// User Profile Services
+export const updateUserProfile = async (userId: string, userData: Partial<User>) => {
+  try {
+    const userQuery = query(collection(db, "users"), where("uid", "==", userId));
+    const querySnapshot = await getDocs(userQuery);
+    
+    if (!querySnapshot.empty) {
+      const userDoc = querySnapshot.docs[0];
+      await updateDoc(doc(db, "users", userDoc.id), {
+        ...userData,
+        updatedAt: serverTimestamp()
+      });
+    }
+  } catch (error) {
+    console.error("Error updating user profile: ", error);
+    throw error;
+  }
+};
+
+export const getUserProfile = async (userId: string) => {
+  try {
+    const userQuery = query(collection(db, "users"), where("uid", "==", userId));
+    const querySnapshot = await getDocs(userQuery);
+    
+    if (!querySnapshot.empty) {
+      const userDoc = querySnapshot.docs[0];
+      return { id: userDoc.id, ...userDoc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting user profile: ", error);
+    throw error;
+  }
+};
+
+// Post Services
+export const addPost = async (postData: Partial<AnimalPost>, imageFile: File) => {
+  try {
+    // Upload image
+    const storageRef = ref(storage, `posts/${Date.now()}_${imageFile.name}`);
+    const uploadResult = await uploadBytes(storageRef, imageFile);
+    const imageUrl = await getDownloadURL(uploadResult.ref);
+    
+    // Add post to Firestore
+    const docRef = await addDoc(collection(db, "posts"), {
+      ...postData,
+      imageUrl: imageUrl,
+      likes: 0,
+      comments: 0,
+      timestamp: serverTimestamp(),
+      views: 0
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding post: ", error);
+    throw error;
+  }
+};
+
+export const getRecentPosts = async (limit_count: number = 10) => {
+  try {
+    const postsQuery = query(
+      collection(db, "posts"),
+      orderBy("timestamp", "desc"),
+      limit(limit_count)
+    );
+    
+    const querySnapshot = await getDocs(postsQuery);
+    const posts: any[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      posts.push({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp ? doc.data().timestamp.toDate() : null
+      });
+    });
+    
+    return posts;
+  } catch (error) {
+    console.error("Error fetching posts: ", error);
+    throw error;
+  }
+};
+
+export const getTrendingPosts = async (limit_count: number = 5) => {
+  try {
+    const postsQuery = query(
+      collection(db, "posts"),
+      orderBy("views", "desc"),
+      limit(limit_count)
+    );
+    
+    const querySnapshot = await getDocs(postsQuery);
+    const posts: any[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      posts.push({
+        id: doc.id,
+        ...doc.data(),
+        trending: true,
+        timestamp: doc.data().timestamp ? doc.data().timestamp.toDate() : null
+      });
+    });
+    
+    return posts;
+  } catch (error) {
+    console.error("Error fetching trending posts: ", error);
+    throw error;
+  }
+};
+
+// Donation Services - keeping existing functionality but enhancing
+export const addDonation = async (donationData: Partial<Donation>) => {
+  try {
+    const docRef = await addDoc(collection(db, "donations"), {
+      ...donationData,
+      timestamp: serverTimestamp()
+    });
+    
+    // Update user's donation count if userId is provided
+    if (donationData.userId) {
+      const userQuery = query(collection(db, "users"), where("uid", "==", donationData.userId));
+      const querySnapshot = await getDocs(userQuery);
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        await updateDoc(doc(db, "users", userDoc.id), {
+          donationsMade: (userDoc.data().donationsMade || 0) + 1
+        });
+      }
+    }
+    
+    console.log("Donation added with ID: ", docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding donation: ", error);
+    throw error;
+  }
+};
+
+export const getRecentDonations = async (limit_count: number = 5) => {
+  try {
+    const donationsQuery = query(
+      collection(db, "donations"), 
+      orderBy("timestamp", "desc"), 
+      limit(limit_count)
+    );
+    
+    const querySnapshot = await getDocs(donationsQuery);
+    const donations: any[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      donations.push({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp ? doc.data().timestamp.toDate() : null
+      });
+    });
+    
+    return donations;
+  } catch (error) {
+    console.error("Error fetching donations: ", error);
+    throw error;
+  }
+};
+
+// Extinction Book Services - Admin only
+export const addExtinctAnimal = async (animalData: any, imageFile: File, adminEmail: string) => {
+  try {
+    // Check if user is admin
+    const usersQuery = query(collection(db, "users"), where("email", "==", adminEmail), where("isAdmin", "==", true));
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    if (usersSnapshot.empty) {
+      throw new Error("Unauthorized: Only admins can add to the Book of Extinction");
+    }
+    
+    // Upload image
+    const storageRef = ref(storage, `extinction/${Date.now()}_${imageFile.name}`);
+    const uploadResult = await uploadBytes(storageRef, imageFile);
+    const imageUrl = await getDownloadURL(uploadResult.ref);
+    
+    // Add animal to Firestore
+    const docRef = await addDoc(collection(db, "extinctAnimals"), {
+      ...animalData,
+      imageUrl: imageUrl,
+      addedBy: adminEmail,
+      timestamp: serverTimestamp()
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding extinct animal: ", error);
+    throw error;
+  }
+};
+
+export const getExtinctAnimals = async () => {
+  try {
+    const animalsQuery = query(
+      collection(db, "extinctAnimals"), 
+      orderBy("timestamp", "desc")
+    );
+    
+    const querySnapshot = await getDocs(animalsQuery);
+    const animals: any[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      animals.push({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp ? doc.data().timestamp.toDate() : null
+      });
+    });
+    
+    return animals;
+  } catch (error) {
+    console.error("Error fetching extinct animals: ", error);
+    throw error;
+  }
+};

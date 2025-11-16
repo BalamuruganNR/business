@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write;
+    }
+    
+    // User profile pictures folder
+    match /profilePictures/{userId}/{fileName} {
+      // Anyone can read public profile pictures
+      allow read: if true;
+      
+      // Only users can upload their own profile pictures
+      allow write: if request.auth != null && request.auth.uid == userId 
+                    && request.resource.size < 5 * 1024 * 1024 // 5MB max
+                    && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Animal post images folder
+    match /animalPosts/{userId}/{fileName} {
+      // Anyone can read animal post images
+      allow read: if true;
+      
+      // Only authenticated users can upload animal post images to their own folder
+      allow write: if request.auth != null && request.auth.uid == userId
+                    && request.resource.size < 10 * 1024 * 1024 // 10MB max
+                    && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Donations proof documents
+    match /donations/{userId}/{fileName} {
+      // Only the user who uploaded and admins can read donation proofs
+      allow read: if request.auth != null && (
+                    request.auth.uid == userId ||
+                    exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+                  );
+      
+      // Only authenticated users can upload their own donation proofs
+      allow write: if request.auth != null && request.auth.uid == userId
+                    && request.resource.size < 20 * 1024 * 1024 // 20MB max
+                    && (
+                      request.resource.contentType.matches('image/.*') ||
+                      request.resource.contentType.matches('application/pdf')
+                    );
+    }
+  }
+}

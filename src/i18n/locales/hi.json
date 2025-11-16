@@ -1,0 +1,32 @@
+{
+  "header": {
+    "search": "जानवरों, दोस्तों को खोजें...",
+    "notifications": "सूचनाएँ",
+    "create": "बनाएँ",
+    "settings": "सेटिंग्स",
+    "admin": "एडमिन"
+  },
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएँ",
+    "edit": "संपादित करें",
+    "share": "साझा करें",
+    "close": "बंद करें",
+    "confirm": "पुष्टि करें",
+    "submit": "सबमिट करें",
+    "success": "सफलता!",
+    "error": "त्रुटि",
+    "warning": "चेतावनी",
+    "info": "जानकारी"
+  },
+  "messaging": {
+    "title": "संदेश",
+    "newMessage": "नया संदेश",
+    "noMessages": "अभी तक कोई संदेश नहीं",
+    "startConversation": "बातचीत शुरू करें",
+    "typeMessage": "संदेश लिखें...",
+    "send": "भेजें"
+  }
+} 

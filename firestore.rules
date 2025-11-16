@@ -1,0 +1,109 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Authentication check helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // User ownership check helper function
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Check if user is an admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Check if a document was created correctly (userId field matches auth)
+    function isValidCreate() {
+      return request.resource.data.userId == request.auth.uid;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone can read public user profiles
+      allow read: if isAuthenticated();
+      
+      // More permissive user creation rule
+      allow create: if request.auth != null;
+      
+      // Allow updates to own profile or by admin users
+      allow update: if isOwner(userId) || 
+                     isAdmin() || 
+                     (isAuthenticated() && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['badges']));
+      
+      // Only allow delete by owner or admin
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+    
+    // Posts collection
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      
+      // Only authenticated users can create posts, and they must be the author
+      allow create: if isAuthenticated() && isValidCreate();
+      
+      // Only the post owner can update or delete their posts
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Comments collection
+    match /comments/{commentId} {
+      // Anyone can read comments
+      allow read: if true;
+      
+      // Only authenticated users can create comments, and they must be the author
+      allow create: if isAuthenticated() && isValidCreate();
+      
+      // Only the comment owner can update or delete their comments
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Donations collection
+    match /donations/{donationId} {
+      // Allow anyone to read all donations
+      allow read: if isAuthenticated();
+      
+      // Any authenticated user can create donations
+      allow create: if isAuthenticated();
+      
+      // Only the donation owner can update or delete their donations
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Conversations collection (SIMPLIFIED)
+    match /conversations/{conversationId} {
+      // Any authenticated user can read/list conversations (fixes search issues)
+      allow read: if isAuthenticated();
+      
+      // Any authenticated user can create conversations
+      allow create: if isAuthenticated();
+      
+      // Any authenticated user can update conversations
+      allow update: if isAuthenticated();
+      
+      // Messages subcollection (SIMPLIFIED)
+      match /messages/{messageId} {
+        // Any authenticated user can read messages
+        allow read: if isAuthenticated();
+        
+        // Any authenticated user can create messages
+        allow create: if isAuthenticated();
+        
+        // Any authenticated user can update/delete messages
+        allow update, delete: if isAuthenticated();
+      }
+    }
+    
+    // Generic rule for other collections
+    match /{document=**} {
+      // Default deny
+      allow read, write: if false;
+    }
+  }
+}

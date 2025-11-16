@@ -1,0 +1,32 @@
+{
+  "header": {
+    "search": "Rechercher animaux, amis...",
+    "notifications": "Notifications",
+    "create": "Créer",
+    "settings": "Paramètres",
+    "admin": "Admin"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "share": "Partager",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "submit": "Soumettre",
+    "success": "Succès !",
+    "error": "Erreur",
+    "warning": "Avertissement",
+    "info": "Information"
+  },
+  "messaging": {
+    "title": "Messages",
+    "newMessage": "Nouveau Message",
+    "noMessages": "Pas encore de messages",
+    "startConversation": "Démarrer une conversation",
+    "typeMessage": "Saisissez un message...",
+    "send": "Envoyer"
+  }
+} 
