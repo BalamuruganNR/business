@@ -43,7 +43,7 @@ const Header: React.FC = () => {
     <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-border px-4 py-3 shadow-sm">
       <div className="flex justify-between items-center max-w-screen-md mx-auto">
         <Link to="/" className="flex items-center space-x-2">
-          <img src="/src/assets/Zoophi.png" alt="Zoophi" className="h-9 w-9 rounded-full" />
+          <img src="/Zoophi.png" alt="Zoophi" className="h-9 w-9 rounded-full" />
           <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Zoophi</span>
         </Link>
         
