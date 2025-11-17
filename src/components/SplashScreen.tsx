@@ -26,7 +26,7 @@ const SplashScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         className="mb-8"
       >
         <img 
-          src="/src/assets/Zoophi.png" 
+          src="/Zoophi.png" 
           alt="Zoophi" 
           className="h-32 w-32 rounded-full bg-white p-4 shadow-xl"
           onError={(e) => {
