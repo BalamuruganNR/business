@@ -39,7 +39,7 @@ const extinctAnimals = [
     period: '17th century',
     location: 'Mauritius',
     cause: 'Hunting and invasive species',
-    imageUrl: 'https://source.unsplash.com/random/400x600?dodo',
+    imageUrl: 'https://images.unsplash.com/photo-1579273175840-512f9e43f993?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZG9kb3xlbnwwfHwwfHx8MA%3D%3D',
     description: 'The dodo was a flightless bird endemic to the island of Mauritius, east of Madagascar. The dodo became extinct during the mid-to-late 17th century due to human activities.',
     category: 'birds'
   },
